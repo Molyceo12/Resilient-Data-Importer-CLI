@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import argparse
 import logging
+import time
 from collections.abc import Sequence
 
+from importer.display import render_error, render_report
 from importer.exceptions import ImporterError
 from importer.logging_config import VALID_LEVELS, configure_logging
-from importer.models import ImportSummary
 from importer.parser import CsvParser
 from importer.repository import JsonUserRepository
 from importer.service import ImportService
@@ -21,6 +22,7 @@ from importer.validator import UserValidator
 logger = logging.getLogger(__name__)
 
 DEFAULT_DB_PATH = "output/users.json"
+DEFAULT_LOG_FILE = "output/importer.log"
 
 EXIT_OK = 0
 EXIT_FATAL = 1
@@ -52,32 +54,18 @@ def build_arg_parser() -> argparse.ArgumentParser:
         choices=VALID_LEVELS,
         help="logging detail (default: INFO)",
     )
+    arg_parser.add_argument(
+        "--log-file",
+        default=DEFAULT_LOG_FILE,
+        help=f"file to write detailed logs to (default: {DEFAULT_LOG_FILE})",
+    )
+    arg_parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="also print detailed log lines in the terminal",
+    )
     return arg_parser
-
-
-def format_summary(summary: ImportSummary) -> str:
-    """Build the human-readable summary printed after an import.
-
-    Args:
-        summary: Result of the import run.
-
-    Returns:
-        Multi-line summary text.
-    """
-    lines = [
-        "Import summary",
-        "--------------",
-        f"Imported:   {summary.imported}",
-        f"Skipped:    {summary.skipped}",
-        f"Duplicates: {summary.duplicates}",
-    ]
-    if summary.problems:
-        lines.append("Problems:")
-        lines.extend(
-            f"  - Line {problem.line_number}: {problem.kind}, {problem.details}"
-            for problem in summary.problems
-        )
-    return "\n".join(lines)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -91,7 +79,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         import finished but some rows were skipped or duplicated.
     """
     args = build_arg_parser().parse_args(argv)
-    configure_logging(args.log_level)
+    configure_logging(args.log_level, log_file=args.log_file, console=args.verbose)
 
     service = ImportService(
         parser=CsvParser(),
@@ -99,12 +87,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         repository=JsonUserRepository(args.db),
     )
 
+    started = time.perf_counter()
     try:
         summary = service.run(args.csv_file)
     except ImporterError as exc:
         logger.error("Import failed: %s", exc)
-        print(f"Error: {exc}")
+        print(render_error(exc, args.csv_file))
         return EXIT_FATAL
 
-    print(format_summary(summary))
+    elapsed = time.perf_counter() - started
+    print(render_report(summary, args.csv_file, args.db, args.log_file, elapsed))
     return EXIT_PARTIAL if summary.has_problems else EXIT_OK
