@@ -71,9 +71,12 @@ def format_summary(summary: ImportSummary) -> str:
         f"Skipped:    {summary.skipped}",
         f"Duplicates: {summary.duplicates}",
     ]
-    if summary.errors:
+    if summary.problems:
         lines.append("Problems:")
-        lines.extend(f"  - {message}" for message in summary.errors)
+        lines.extend(
+            f"  - Line {problem.line_number}: {problem.kind}, {problem.details}"
+            for problem in summary.problems
+        )
     return "\n".join(lines)
 
 

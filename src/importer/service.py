@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 
 from importer.exceptions import DuplicateUserError, ValidationError
-from importer.models import ImportSummary
+from importer.models import ImportSummary, RowProblem
 from importer.parser import CsvParser
 from importer.repository import UserRepository
 from importer.validator import UserValidator
@@ -67,11 +67,21 @@ class ImportService:
                     self.repository.add(user)
                 except ValidationError as exc:
                     summary.skipped += 1
-                    summary.errors.append(str(exc))
+                    summary.problems.append(
+                        RowProblem(
+                            exc.line_number, "invalid", f"{exc.field}: {exc.reason}"
+                        )
+                    )
                     logger.warning("Skipped row: %s", exc)
                 except DuplicateUserError as exc:
                     summary.duplicates += 1
-                    summary.errors.append(f"Line {row.line_number}: {exc}")
+                    summary.problems.append(
+                        RowProblem(
+                            row.line_number,
+                            "duplicate",
+                            f"{exc.field} already exists (user {exc.user_id})",
+                        )
+                    )
                     logger.warning(
                         "Skipped duplicate at line %d: %s", row.line_number, exc
                     )
