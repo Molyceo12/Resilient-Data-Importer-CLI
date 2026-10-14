@@ -84,3 +84,6 @@ Thumbs.db
 desktop.ini
 ehthumbs.db
 $RECYCLE.BIN/
+
+# Private agile task tracking (local only)
+docs/

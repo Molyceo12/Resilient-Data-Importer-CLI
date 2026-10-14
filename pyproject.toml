@@ -16,3 +16,32 @@ packages = [{include = "importer", from = "src"}]
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pre-commit (>=4.7.0,<5.0.0)",
+    "black (>=26.10.1,<27.0.0)",
+    "ruff (>=0.17.0,<0.18.0)",
+    "mypy (>=2.4.0,<3.0.0)",
+    "pytest (>=9.1.1,<10.0.0)",
+    "pytest-mock (>=3.16.0,<4.0.0)",
+    "pytest-cov (>=7.1.0,<8.0.0)"
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+files = ["src", "tests"]
